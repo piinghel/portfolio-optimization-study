@@ -1,0 +1,12 @@
+{
+  "source_repository": "https://github.com/piinghel/systematic-equity-research",
+  "source_commit": "4d457c9b2c15a9a7cfd83c8cc1f7ff20f847f063",
+  "scope": "Unchanged portfolio-level input files; code ownership moved to this study.",
+  "sha256": {
+    "outputs/review/article_parameter_sensitivity.csv": "f3f59c44f8a6862cb85851f20340023469e491c580dd61dbf25ca663f0913df7",
+    "outputs/review/article_period_comparison.csv": "a3b166f87f407cfcc6b028257ef1299abffedd67cb091eb44230a013035ea27b",
+    "outputs/review/performance_path_daily.parquet": "3de401d24d06edb8b46caaefe2f68c1b48a17ab7e0e6340b7ae2476d4dce5923",
+    "outputs/review/rho_ladder_summary.csv": "a5d8a7ccbce968139cf5471bc9f664b0acf4a80e1a4e72827694e7a3d3a96ee7",
+    "outputs/review/rolling_realised_beta_252d.csv": "49e705747cfea6bca5bb40938104eece5076c9b7e4961868d83bb16327e57df5"
+  }
+}

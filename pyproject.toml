@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "portfolio-optimization-study"
+version = "0.1.0"
+description = "Joint sizing and trading controls: method example and portfolio evidence"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["polars==1.44.1", "numpy==2.5.2", "cvxpy==1.9.2"]
+
+[dependency-groups]
+dev = ["pytest>=8.4", "ruff==0.16.0", "ty==0.0.72"]
+
+[tool.setuptools]
+packages = ["portfolio_optimization"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]

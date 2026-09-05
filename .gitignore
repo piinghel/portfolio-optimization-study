@@ -1,0 +1,13 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+outputs/review/figures/
+outputs/review/*manifest.json
+outputs/review/*_caption.md
+outputs/review/*metrics.csv

@@ -45,18 +45,18 @@ LIGHT = Palette(
     title="#000000",
     muted="#667085",
     grid="#D9DEE8",
-    b1="#9AA4B2",
-    b2="#4F7396",
-    b3="#B98556",
+    b1="#9AA6AF",
+    b2="#345B7E",
+    b3="#378579",
 )
 DARK = Palette(
     text="#F3F4F6",
     title="#F3F4F6",
     muted="#AAB2C0",
     grid="#3B4250",
-    b1="#AAB2C0",
+    b1="#8B949E",
     b2="#78A0C4",
-    b3="#C79261",
+    b3="#6EB5A5",
 )
 
 
@@ -142,13 +142,15 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
     """Render daily matched wealth and drawdown paths as one article figure."""
 
     _validate(frame)
-    width, height = (480, 680) if mobile else (WIDTH, HEIGHT)
+    width, height = (480, 650) if mobile else (WIDTH, HEIGHT)
+    label_size = 18 if mobile else 21
+    title_size = 20 if mobile else 23
     left = 55.0 if mobile else 90.0
-    right = 455.0 if mobile else 1140.0
-    wealth_top = 165.0 if mobile else 90.0
-    wealth_bottom = 410.0 if mobile else 445.0
-    drawdown_top = 485.0 if mobile else 525.0
-    drawdown_bottom = 640.0 if mobile else 735.0
+    right = 335.0 if mobile else 975.0
+    wealth_top = 85.0 if mobile else 90.0
+    wealth_bottom = 380.0 if mobile else 445.0
+    drawdown_top = 455.0 if mobile else 525.0
+    drawdown_bottom = 610.0 if mobile else 735.0
     start_value = frame.get_column("date").min()
     end_value = frame.get_column("date").max()
     if not isinstance(start_value, date) or not isinstance(end_value, date):
@@ -178,52 +180,19 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
             f'height="{height}" viewBox="0 0 {width} {height}">'
         ),
         ('<g font-family="DejaVu Sans, sans-serif">'),
-        _line(left, 24, left + 30, 24, stroke=palette.b1, stroke_width="3"),
-        _text(left + 40, 29, "Volatility-scaled", fill=palette.text, size=18),
-        _line(
-            left if mobile else 340,
-            52 if mobile else 24,
-            left + 30 if mobile else 370,
-            52 if mobile else 24,
-            stroke=palette.b2,
-            stroke_width="3",
-        ),
         _text(
-            left + 40 if mobile else 380,
-            57 if mobile else 29,
-            "Optimizer",
-            fill=palette.text,
-            size=18,
-        ),
-        _line(
-            left if mobile else 550,
-            80 if mobile else 24,
-            left + 30 if mobile else 580,
-            80 if mobile else 24,
-            stroke=palette.b3,
-            stroke_width="3",
-        ),
-        _text(
-            left + 40 if mobile else 590,
-            85 if mobile else 29,
-            "Optimizer + trading controls",
-            fill=palette.text,
-            size=18,
-        ),
-        _text(
-            left if mobile else right,
-            118 if mobile else 65,
+            left,
+            28,
             "Development · 1998–2021",
             fill=palette.muted,
-            size=18,
-            anchor="start" if mobile else "end",
+            size=label_size,
         ),
         _text(
             left,
             wealth_top - 15,
             "Net growth index (log scale)",
             fill=palette.title,
-            size=20,
+            size=title_size,
             weight=600,
         ),
         _text(
@@ -231,7 +200,7 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
             drawdown_top - 15,
             "Drawdown (%)",
             fill=palette.title,
-            size=20,
+            size=title_size,
             weight=600,
         ),
     ]
@@ -245,7 +214,7 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
                     y + 5,
                     f"{tick:.0f}×",
                     fill=palette.muted,
-                    size=18,
+                    size=label_size,
                     anchor="end",
                 ),
             ]
@@ -260,7 +229,7 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
                     y + 5,
                     f"{tick:.0f}",
                     fill=palette.muted,
-                    size=18,
+                    size=label_size,
                     anchor="end",
                 ),
             ]
@@ -273,11 +242,12 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
                 height - 17,
                 str(year),
                 fill=palette.muted,
-                size=18,
+                size=label_size,
                 anchor="middle",
             )
         )
     colors = {"b1": palette.b1, "b2": palette.b2, "b3": palette.b3}
+    endpoints: list[tuple[float, str]] = []
     for allocator in ("b1", "b2", "b3"):
         rows = frame.filter(pl.col("allocator") == allocator).sort("date")
         wealth_points = [
@@ -288,6 +258,7 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
             (x_position(value_date), drawdown_y(float(value)))
             for value_date, value in rows.select("date", "drawdown_pct").iter_rows()
         ]
+        endpoints.append((wealth_points[-1][1], allocator))
         width = 2.0 if allocator == "b1" else 2.5
         elements.extend(
             [
@@ -301,11 +272,47 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
                 _path(
                     drawdown_points,
                     colors[allocator],
-                    1.8 if allocator == "b1" else 2.1,
+                    1.4 if allocator == "b1" else 1.7,
                     opacity=0.75 if allocator == "b1" else 0.90,
                 ),
             ]
         )
+    names = {
+        "b1": ("Volatility-", "scaled") if mobile else ("Volatility-scaled",),
+        "b2": ("Optimizer",),
+        "b3": ("With trading", "controls")
+        if mobile
+        else ("Optimizer +", "trading controls"),
+    }
+    direct_size = 17 if mobile else 21
+    label_x = right + (20 if mobile else 25)
+    next_center = wealth_top + direct_size
+    for endpoint_y, allocator in sorted(endpoints):
+        center = max(endpoint_y, next_center)
+        next_center = center + direct_size * 2.8
+        elements.append(
+            _line(
+                right + 3,
+                endpoint_y,
+                label_x - 5,
+                center,
+                stroke=colors[allocator],
+                stroke_width="1",
+                stroke_opacity="0.7",
+            )
+        )
+        lines = names[allocator]
+        for index, line in enumerate(lines):
+            elements.append(
+                _text(
+                    label_x,
+                    center + direct_size * (index - (len(lines) - 1) / 2 + 0.35),
+                    line,
+                    fill=colors[allocator],
+                    size=direct_size,
+                    weight=600,
+                )
+            )
     elements.extend(["</g>", "</svg>"])
     return "\n".join(elements) + "\n"
 

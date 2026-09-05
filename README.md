@@ -35,8 +35,7 @@ uv run python -m portfolio_optimization.risk_calibration_figure
 
 These commands use the five included inputs under `outputs/review/`. They write
 light/dark SVGs and generation records there; SVGs go in `outputs/review/figures/`.
-Performance and parameter sensitivity also have phone layouts. The first two
-figures support the current article; the other two retain supporting risk diagnostics.
+All four figures support the current article and have phone layouts.
 The outputs are ignored by Git.
 
 | Question | Source |

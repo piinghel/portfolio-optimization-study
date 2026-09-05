@@ -17,7 +17,7 @@ REVIEW_ROOT = PROJECT_ROOT / "outputs" / "review"
 SUMMARY_PATH = REVIEW_ROOT / "rho_ladder_summary.csv"
 FIGURE_ROOT = REVIEW_ROOT / "figures"
 WIDTH = 1200
-HEIGHT = 725
+HEIGHT = 780
 
 
 @dataclass(frozen=True)
@@ -34,17 +34,17 @@ LIGHT = Palette(
     text="#172033",
     muted="#667085",
     grid="#D9DEE8",
-    stable="#E8F3EC",
-    b2="#2563EB",
-    b3="#D97706",
+    stable="#EDF1F3",
+    b2="#345B7E",
+    b3="#378579",
 )
 DARK = Palette(
     text="#F3F4F6",
     muted="#AAB2C0",
     grid="#3B4250",
-    stable="#203D31",
-    b2="#60A5FA",
-    b3="#FBBF24",
+    stable="#202A32",
+    b2="#78A0C4",
+    b3="#6EB5A5",
 )
 
 
@@ -63,9 +63,9 @@ PANELS = (
     Panel(
         "Risk calibration",
         "realised_to_predicted_volatility",
-        1.16,
-        1.76,
-        (1.2, 1.4, 1.6),
+        1.0,
+        1.8,
+        (1.0, 1.2, 1.4, 1.6, 1.8),
         ".2f",
         "Root-mean realized / forecast volatility",
     ),
@@ -76,7 +76,7 @@ PANELS = (
         0.26,
         (0.18, 0.20, 0.22, 0.24),
         ".2f",
-        "Mean absolute beta error over next holding period",
+        "Next-holding-period mean absolute error",
     ),
     Panel(
         "Annual turnover",
@@ -128,11 +128,13 @@ def _panel_svg(
     width: float,
     height: float,
     palette: Palette,
+    mobile: bool,
 ) -> list[str]:
     left = x0 + 62
     right = x0 + width - 25
-    top = y0 + 62
-    bottom = y0 + height - 52
+    top = y0 + 70
+    bottom = y0 + height - 65
+    label_size = 18 if mobile else 21
 
     def x_position(value: float) -> float:
         return left + value * (right - left)
@@ -143,8 +145,17 @@ def _panel_svg(
         )
 
     elements = [
-        _text(x0 + 8, y0 + 23, panel.title, fill=palette.text, size=24, weight=650),
-        _text(x0 + 8, y0 + 47, panel.note, fill=palette.muted, size=18),
+        _text(
+            x0 + 8,
+            y0 + 23,
+            panel.title,
+            fill=palette.text,
+            size=20 if mobile else 24,
+            weight=600,
+        ),
+        _text(
+            x0 + 8, y0 + 47, panel.note, fill=palette.muted, size=18 if mobile else 20
+        ),
         (
             f'<rect x="{x_position(0.3):.1f}" y="{top:.1f}" '
             f'width="{x_position(0.6) - x_position(0.3):.1f}" '
@@ -160,7 +171,7 @@ def _panel_svg(
                 y + 5,
                 format(tick, panel.formatter),
                 fill=palette.muted,
-                size=18,
+                size=label_size,
                 anchor="end",
             )
         )
@@ -175,7 +186,7 @@ def _panel_svg(
                 bottom + 23,
                 format(rho, ".1f"),
                 fill=palette.muted,
-                size=18,
+                size=label_size,
                 anchor="middle",
             )
         )
@@ -200,15 +211,28 @@ def _panel_svg(
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{color}"/>'
             for x, y in points
         )
+    elements.append(
+        _text(
+            (left + right) / 2,
+            bottom + 50,
+            "Correlation shrinkage ρ",
+            fill=palette.muted,
+            size=label_size,
+            anchor="middle",
+        )
+    )
     return elements
 
 
-def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
+def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> str:
     _validate(frame)
+    width, height = (480, 1435) if mobile else (WIDTH, HEIGHT)
+    label_size = 18 if mobile else 21
+    legend_left = 24 if mobile else 90
     elements = [
         (
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" '
-            f'height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" '
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+            f'height="{height}" viewBox="0 0 {width} {height}" role="img" '
             'aria-labelledby="title desc">'
         ),
         '<title id="title">How much correlation shrinkage matters</title>',
@@ -217,20 +241,32 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
             "turnover, and net Sharpe for the optimizer with and without trading "
             "controls as correlation shrinkage moves from zero to one.</desc>"
         ),
-        '<g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">',
-        _line(90, 20, 126, 20, stroke=palette.b2, stroke_width="3"),
-        _text(137, 25, "Optimizer", fill=palette.text, size=18, weight=600),
-        _line(250, 20, 286, 20, stroke=palette.b3, stroke_width="3"),
+        '<g font-family="DejaVu Sans, sans-serif">',
+        _line(
+            legend_left, 20, legend_left + 30, 20, stroke=palette.b2, stroke_width="3"
+        ),
+        _text(legend_left + 40, 25, "Optimizer", fill=palette.text, size=label_size),
+        _line(
+            legend_left if mobile else 310,
+            50 if mobile else 20,
+            legend_left + 30 if mobile else 340,
+            50 if mobile else 20,
+            stroke=palette.b3,
+            stroke_width="3",
+        ),
         _text(
-            297,
-            25,
+            legend_left + 40 if mobile else 350,
+            55 if mobile else 25,
             "Optimizer + trading controls",
             fill=palette.text,
-            size=18,
-            weight=600,
+            size=label_size,
         ),
     ]
-    positions = ((45, 35), (630, 35), (45, 395), (630, 395))
+    positions = (
+        ((8, 90), (8, 425), (8, 760), (8, 1095))
+        if mobile
+        else ((45, 60), (630, 60), (45, 420), (630, 420))
+    )
     for panel, (x0, y0) in zip(PANELS, positions, strict=True):
         elements.extend(
             _panel_svg(
@@ -238,9 +274,10 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
                 panel,
                 x0=x0,
                 y0=y0,
-                width=540,
-                height=340,
+                width=460 if mobile else 540,
+                height=335 if mobile else 345,
                 palette=palette,
+                mobile=mobile,
             )
         )
     elements.extend(("</g>", "</svg>"))
@@ -259,11 +296,17 @@ def build_rho_ladder_figure(
     paths = {
         "light": figure_root / "rho-ladder.svg",
         "dark": figure_root / "rho-ladder_dark.svg",
+        "mobile_light": figure_root / "rho-ladder_mobile.svg",
+        "mobile_dark": figure_root / "rho-ladder_mobile_dark.svg",
         "caption": review_root / "rho_ladder_figure_caption.md",
         "manifest": review_root / "rho_ladder_figure_manifest.json",
     }
     paths["light"].write_text(build_svg(frame, palette=LIGHT), encoding="utf-8")
     paths["dark"].write_text(build_svg(frame, palette=DARK), encoding="utf-8")
+    for theme, palette in (("light", LIGHT), ("dark", DARK)):
+        paths[f"mobile_{theme}"].write_text(
+            build_svg(frame, palette=palette, mobile=True), encoding="utf-8"
+        )
     paths["caption"].write_text(
         "**Figure 3. Correlation shrinkage.** The optimizer "
         "and the optimizer with trading controls are rebuilt at every shrinkage "
@@ -284,6 +327,8 @@ def build_rho_ladder_figure(
                 "files": [
                     os.path.relpath(paths["light"], PROJECT_ROOT),
                     os.path.relpath(paths["dark"], PROJECT_ROOT),
+                    os.path.relpath(paths["mobile_light"], PROJECT_ROOT),
+                    os.path.relpath(paths["mobile_dark"], PROJECT_ROOT),
                 ],
                 "observation": (
                     "Risk calibration and beta error are lowest around 0.4. "
@@ -304,7 +349,7 @@ def build_rho_ladder_figure(
                     "overshoot counts",
                     "executed_weight_l1_vs_rho50",
                 ],
-                "mobile_specific_asset": False,
+                "mobile_specific_asset": True,
             },
             indent=2,
         )

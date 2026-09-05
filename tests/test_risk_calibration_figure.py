@@ -52,7 +52,7 @@ def test_beta_svg_contains_all_three_paths_without_target_annotation() -> None:
     svg = build_svg(pl.DataFrame(rows), palette=LIGHT)
 
     assert svg.count("<path") == 3
-    assert "Volatility-scaled rule" in svg
+    assert "Volatility-scaled" in svg
     assert "Optimizer" in svg
     assert "Optimizer + trading controls" in svg
     assert "Target band" not in svg

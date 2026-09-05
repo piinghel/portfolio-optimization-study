@@ -138,7 +138,7 @@ def test_parameter_figure_contains_both_axes_and_selected_settings() -> None:
 
     assert "Trade coefficient" in svg
     assert "Holding cutoff" in svg
-    assert "Points: means · whiskers: schedule range" in svg
+    assert "Means · Sharpe whiskers: schedule range" in svg
     assert "Annual turnover (× capital)" in svg
 
 

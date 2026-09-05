@@ -142,6 +142,7 @@ def _panel(
     height: float,
     palette: Palette,
     show_column_title: bool,
+    label_size: int,
 ) -> list[str]:
     left = x0 + 72
     right = x0 + width - 28
@@ -161,10 +162,19 @@ def _panel(
     elements: list[str] = []
     if show_column_title:
         elements.append(
-            _text(x0 + 8, y0 + 23, column.title, fill=palette.text, size=20, weight=600)
+            _text(
+                x0 + 8,
+                y0 + 23,
+                column.title,
+                fill=palette.text,
+                size=label_size + 2,
+                weight=600,
+            )
         )
     elements.append(
-        _text(x0 + 8, top - 8, row.title, fill=palette.text, size=18, weight=400)
+        _text(
+            x0 + 8, top - 8, row.title, fill=palette.text, size=label_size, weight=400
+        )
     )
     for tick in row.ticks:
         y = y_position(tick)
@@ -176,7 +186,7 @@ def _panel(
                     y + 5,
                     format(tick, row.formatter),
                     fill=palette.muted,
-                    size=18,
+                    size=label_size,
                     anchor="end",
                 ),
             )
@@ -192,32 +202,37 @@ def _panel(
         x = x_position(float(value))
         y = y_position(float(mean))
         points.append((x, y))
+        if row.metric == "net_sharpe":
+            elements.extend(
+                (
+                    _line(
+                        x,
+                        y_position(float(low)),
+                        x,
+                        y_position(float(high)),
+                        stroke=palette.line,
+                        stroke_width="2",
+                    ),
+                    _line(
+                        x - 5,
+                        y_position(float(low)),
+                        x + 5,
+                        y_position(float(low)),
+                        stroke=palette.line,
+                        stroke_width="2",
+                    ),
+                    _line(
+                        x - 5,
+                        y_position(float(high)),
+                        x + 5,
+                        y_position(float(high)),
+                        stroke=palette.line,
+                        stroke_width="2",
+                    ),
+                )
+            )
         elements.extend(
             (
-                _line(
-                    x,
-                    y_position(float(low)),
-                    x,
-                    y_position(float(high)),
-                    stroke=palette.line,
-                    stroke_width="2",
-                ),
-                _line(
-                    x - 5,
-                    y_position(float(low)),
-                    x + 5,
-                    y_position(float(low)),
-                    stroke=palette.line,
-                    stroke_width="2",
-                ),
-                _line(
-                    x - 5,
-                    y_position(float(high)),
-                    x + 5,
-                    y_position(float(high)),
-                    stroke=palette.line,
-                    stroke_width="2",
-                ),
                 (
                     f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6" '
                     f'fill="{palette.selected if float(value) == column.selected_value else palette.line}"/>'
@@ -227,7 +242,7 @@ def _panel(
                     bottom + 24,
                     f"{float(label):g}",
                     fill=palette.muted,
-                    size=18,
+                    size=label_size,
                     anchor="middle",
                 ),
             )
@@ -247,7 +262,7 @@ def _panel(
             bottom + 48,
             column.x_label,
             fill=palette.muted,
-            size=18,
+            size=label_size,
             anchor="middle",
         )
     )
@@ -257,6 +272,7 @@ def _panel(
 def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> str:
     _validate(frame)
     width, height = (480, 1240) if mobile else (WIDTH, 660)
+    label_size = 18 if mobile else 21
     elements = [
         (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
@@ -267,23 +283,23 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
         (
             '<desc id="desc">Net Sharpe and annual turnover across six trade '
             "coefficients and five holding-rank cutoffs during development. "
-            "Thin vertical lines show the range across three rebalance schedules.</desc>"
+            "Sharpe whiskers show the range across three rebalance schedules.</desc>"
         ),
         '<g font-family="DejaVu Sans, sans-serif">',
         _text(
             24 if mobile else 53,
             24,
-            "Points: means · whiskers: schedule range",
+            "Means · Sharpe whiskers: schedule range",
             fill=palette.muted,
-            size=18,
+            size=label_size,
         ),
-        f'<circle cx="{32 if mobile else 540}" cy="{48 if mobile else 19}" r="6" fill="{palette.selected}"/>',
+        f'<circle cx="{32 if mobile else 650}" cy="{48 if mobile else 19}" r="6" fill="{palette.selected}"/>',
         _text(
-            48 if mobile else 555,
+            48 if mobile else 665,
             53 if mobile else 24,
             "Chosen setting",
             fill=palette.muted,
-            size=18,
+            size=label_size,
         ),
     ]
     positions = (
@@ -310,6 +326,7 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
                 height=285 if mobile else 300,
                 palette=palette,
                 show_column_title=index < 2,
+                label_size=label_size,
             )
         )
     elements.extend(("</g>", "</svg>"))
@@ -343,7 +360,7 @@ def build_parameter_sensitivity_figure(
         "**Figure 2. Trading-control sensitivity.** Net "
         "Sharpe and annualized two-way turnover through 2021. The trade-coefficient "
         "group holds the rank cutoff at 175; the rank-cutoff group holds the "
-        "coefficient at 0.00025. Points are schedule means; whiskers span the "
+        "coefficient at 0.00025. Points are schedule means; Sharpe whiskers span the "
         "three rebalance schedules, not confidence intervals.\n",
         encoding="utf-8",
     )

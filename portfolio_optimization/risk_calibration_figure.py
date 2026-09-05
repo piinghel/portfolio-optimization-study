@@ -36,22 +36,22 @@ LIGHT = Palette(
     text="#172033",
     muted="#667085",
     grid="#D9DEE8",
-    b1="#64748B",
-    b2="#2563EB",
-    b3="#D97706",
+    b1="#9AA6AF",
+    b2="#345B7E",
+    b3="#378579",
 )
 DARK = Palette(
     text="#F3F4F6",
     muted="#AAB2C0",
     grid="#3B4250",
-    b1="#CBD5E1",
-    b2="#60A5FA",
-    b3="#FBBF24",
+    b1="#8B949E",
+    b2="#78A0C4",
+    b3="#6EB5A5",
 )
 
 ALLOCATORS = (
-    ("b1_ranked_volscale", "Volatility-scaled rule", "b1", "2 5"),
-    ("b2_memoryless_mvo", "Optimizer", "b2", "8 5"),
+    ("b1_ranked_volscale", "Volatility-scaled", "b1", None),
+    ("b2_memoryless_mvo", "Optimizer", "b2", None),
     ("b3_state_aware_mvo", "Optimizer + trading controls", "b3", None),
 )
 EXPECTED_ALLOCATORS = {row[0] for row in ALLOCATORS}
@@ -97,13 +97,17 @@ def _validate(beta: pl.DataFrame) -> None:
         raise ValueError("realised-beta values fall outside the fixed display axis")
 
 
-def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
+def build_svg(beta: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> str:
     """Render the three portfolio beta paths without in-plot annotations."""
 
     _validate(beta)
     minimum, maximum = -0.20, 0.40
 
-    left, right, top, bottom = 95.0, 1115.0, 110.0, 435.0
+    width, height = (480, 560) if mobile else (WIDTH, HEIGHT)
+    label_size = 18 if mobile else 21
+    left, right, top, bottom = (
+        (55.0, 455.0, 150.0, 520.0) if mobile else (95.0, 1115.0, 110.0, 465.0)
+    )
     start = beta.get_column("date").min()
     end = beta.get_column("date").max()
     if not isinstance(start, date) or not isinstance(end, date):
@@ -122,8 +126,8 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
 
     elements = [
         (
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" '
-            f'height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" '
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+            f'height="{height}" viewBox="0 0 {width} {height}" role="img" '
             'aria-labelledby="title desc">'
         ),
         '<title id="title">Trailing realized market beta</title>',
@@ -132,10 +136,7 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
             "volatility-scaled rule and both optimizers, shown against a zero "
             "reference line.</desc>"
         ),
-        (
-            '<g font-family="Inter, ui-sans-serif, -apple-system, '
-            'BlinkMacSystemFont, Segoe UI, sans-serif">'
-        ),
+        ('<g font-family="DejaVu Sans, sans-serif">'),
     ]
 
     for tick in (-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4):
@@ -155,13 +156,13 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
                     y + 5,
                     f"{tick:.1f}",
                     fill=palette.muted,
-                    size=18,
+                    size=label_size,
                     anchor="end",
                 ),
             ]
         )
 
-    for year in (2000, 2005, 2010, 2015, 2020, 2025):
+    for year in (2000, 2010, 2020) if mobile else (2000, 2005, 2010, 2015, 2020):
         tick_date = date(year, 1, 1)
         if start <= tick_date <= end:
             elements.append(
@@ -170,7 +171,7 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
                     bottom + 25,
                     str(year),
                     fill=palette.muted,
-                    size=18,
+                    size=label_size,
                     anchor="middle",
                 )
             )
@@ -181,12 +182,16 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
             34,
             "Trailing 252-day realized beta",
             fill=palette.text,
-            size=23,
-            weight=650,
+            size=20 if mobile else 24,
+            weight=600,
         )
     )
 
-    legend_positions = ((95.0, 60.0), (350.0, 60.0), (95.0, 84.0))
+    legend_positions = (
+        ((55.0, 65.0), (55.0, 93.0), (55.0, 121.0))
+        if mobile
+        else ((95.0, 70.0), (365.0, 70.0), (565.0, 70.0))
+    )
     for index, (allocator, label, color_name, dash) in enumerate(ALLOCATORS):
         color = getattr(palette, color_name)
         x0, y0 = legend_positions[index]
@@ -213,8 +218,7 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
                     y0 + 5,
                     label,
                     fill=palette.text,
-                    size=18,
-                    weight=600,
+                    size=label_size,
                 ),
             ]
         )
@@ -232,14 +236,6 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
 
     elements.extend(
         [
-            _text(
-                (left + right) / 2,
-                HEIGHT - 15,
-                "Date",
-                fill=palette.muted,
-                size=18,
-                anchor="middle",
-            ),
             "</g>",
             "</svg>",
         ]
@@ -261,11 +257,17 @@ def build_risk_calibration_figure(
     paths = {
         "light": figure_root / "risk-calibration-and-beta.svg",
         "dark": figure_root / "risk-calibration-and-beta_dark.svg",
+        "mobile_light": figure_root / "risk-calibration-and-beta_mobile.svg",
+        "mobile_dark": figure_root / "risk-calibration-and-beta_mobile_dark.svg",
         "caption": review_root / "risk_calibration_figure_caption.md",
         "manifest": review_root / "risk_calibration_figure_manifest.json",
     }
     paths["light"].write_text(build_svg(beta, palette=LIGHT), encoding="utf-8")
     paths["dark"].write_text(build_svg(beta, palette=DARK), encoding="utf-8")
+    for theme, palette in (("light", LIGHT), ("dark", DARK)):
+        paths[f"mobile_{theme}"].write_text(
+            build_svg(beta, palette=palette, mobile=True), encoding="utf-8"
+        )
     paths["caption"].write_text(
         "**Figure 4. Realized market beta through time.** Trailing 252-day "
         "portfolio beta for the volatility-scaled rule and both optimizers, "
@@ -288,6 +290,8 @@ def build_risk_calibration_figure(
                 "files": [
                     os.path.relpath(paths["light"], PROJECT_ROOT),
                     os.path.relpath(paths["dark"], PROJECT_ROOT),
+                    os.path.relpath(paths["mobile_light"], PROJECT_ROOT),
+                    os.path.relpath(paths["mobile_dark"], PROJECT_ROOT),
                 ],
                 "observation": (
                     "Through 2021, all three rules carry persistent realised "
@@ -309,7 +313,7 @@ def build_risk_calibration_figure(
                     "beta-estimator comparison",
                     "beta-window rerun",
                 ],
-                "mobile_specific_asset": False,
+                "mobile_specific_asset": True,
             },
             indent=2,
         )

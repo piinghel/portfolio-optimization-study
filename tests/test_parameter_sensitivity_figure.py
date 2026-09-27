@@ -42,7 +42,7 @@ def test_parameter_figure_uses_the_article_terms_for_both_controls() -> None:
     assert "Trade penalty" in svg
     assert "Rank buffer" in svg
     assert "0 = no penalty" in svg
-    assert "75 = no buffer" in svg
+    assert "Rank-buffer cutoff (75 = no buffer)" in svg
     assert "Annual turnover (× capital)" in svg
 
 

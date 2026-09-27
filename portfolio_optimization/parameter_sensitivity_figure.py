@@ -63,7 +63,7 @@ COLUMNS = (
     Column(
         "holding_cutoff",
         "Rank buffer",
-        "Holding cutoff (75 = no buffer)",
+        "Rank-buffer cutoff (75 = no buffer)",
         175.0,
     ),
 )

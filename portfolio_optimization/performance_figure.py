@@ -26,7 +26,9 @@ WEALTH_AXIS_MAX = 16.0
 DRAWDOWN_AXIS_MIN = -22.0
 
 
-ALLOCATORS = ("b1", "b2", "b3")
+BASELINE = "volatility_scaled"
+SELECTED = "optimizer_with_trading_controls"
+ALLOCATORS = (BASELINE, SELECTED)
 
 
 @dataclass(frozen=True)
@@ -35,9 +37,8 @@ class Palette:
     title: str
     muted: str
     grid: str
-    b1: str
-    b2: str
-    b3: str
+    baseline: str
+    selected: str
 
 
 LIGHT = Palette(
@@ -45,25 +46,23 @@ LIGHT = Palette(
     title="#000000",
     muted="#667085",
     grid="#D9DEE8",
-    b1="#9AA6AF",
-    b2="#345B7E",
-    b3="#378579",
+    baseline="#9AA6AF",
+    selected="#378579",
 )
 DARK = Palette(
     text="#F3F4F6",
     title="#F3F4F6",
     muted="#AAB2C0",
     grid="#3B4250",
-    b1="#8B949E",
-    b2="#78A0C4",
-    b3="#6EB5A5",
+    baseline="#8B949E",
+    selected="#6EB5A5",
 )
 
 
 def _validate(frame: pl.DataFrame) -> None:
     expected_allocators = set(ALLOCATORS)
     if set(frame.get_column("allocator")) != expected_allocators:
-        raise ValueError("performance path requires the declared B1/B2/B3 allocators")
+        raise ValueError(f"performance path requires the allocators {ALLOCATORS}")
     counts = frame.group_by("allocator").agg(
         pl.len().alias("rows"),
         pl.col("date").min().alias("start"),
@@ -246,9 +245,9 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
                 anchor="middle",
             )
         )
-    colors = {"b1": palette.b1, "b2": palette.b2, "b3": palette.b3}
+    colors = {BASELINE: palette.baseline, SELECTED: palette.selected}
     endpoints: list[tuple[float, str]] = []
-    for allocator in ("b1", "b2", "b3"):
+    for allocator in ALLOCATORS:
         rows = frame.filter(pl.col("allocator") == allocator).sort("date")
         wealth_points = [
             (x_position(value_date), wealth_y(float(value)))
@@ -259,7 +258,7 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
             for value_date, value in rows.select("date", "drawdown_pct").iter_rows()
         ]
         endpoints.append((wealth_points[-1][1], allocator))
-        width = 2.0 if allocator == "b1" else 2.5
+        width = 2.0 if allocator == BASELINE else 2.5
         elements.extend(
             [
                 _path(wealth_points, colors[allocator], width),
@@ -267,20 +266,19 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
                     drawdown_points,
                     baseline=drawdown_y(0.0),
                     color=colors[allocator],
-                    opacity=0.06 if allocator == "b1" else 0.0,
+                    opacity=0.06 if allocator == BASELINE else 0.0,
                 ),
                 _path(
                     drawdown_points,
                     colors[allocator],
-                    1.4 if allocator == "b1" else 1.7,
-                    opacity=0.75 if allocator == "b1" else 0.90,
+                    1.4 if allocator == BASELINE else 1.7,
+                    opacity=0.75 if allocator == BASELINE else 0.90,
                 ),
             ]
         )
     names = {
-        "b1": ("Volatility-", "scaled") if mobile else ("Volatility-scaled",),
-        "b2": ("Optimizer",),
-        "b3": ("With trading", "controls")
+        BASELINE: ("Volatility-", "scaled") if mobile else ("Volatility-scaled",),
+        SELECTED: ("Optimizer +", "trading", "controls")
         if mobile
         else ("Optimizer +", "trading controls"),
     }
@@ -352,18 +350,19 @@ def build_performance_figure(
             build_svg(frame, palette=palette, mobile=True), encoding="utf-8"
         )
     caption = (
-        "**Figure 1. Net performance and drawdowns through time.** Daily net "
-        "returns charge 5 bp per side. Each rebalance-schedule path is "
-        "compounded separately, then the three wealth levels are averaged once "
-        "all offsets are live, from 22 September 1998 "
-        "through 31 December 2021. This path shows timing and compounding; Table 1 "
-        "reports the mean of the three schedule-level metrics. The strategies "
-        "retain different volatilities; cumulative growth is not a risk-matched comparison."
+        "Net growth index (log scale) and drawdown after 5 bp trading costs for "
+        "volatility scaling and the optimizer with trading controls, 22 September "
+        "1998–31 December 2021. Each rebalance schedule is compounded separately "
+        "and the three wealth levels are averaged once all schedules are live. "
+        "The rules run at different volatilities."
     )
     paths["caption"].write_text(caption + "\n", encoding="utf-8")
     manifest = {
         "display": "Figure 1",
-        "question": ("How do the three allocation rules compound during development?"),
+        "question": (
+            "How do volatility scaling and the optimizer with trading controls "
+            "compound during development?"
+        ),
         "data": str(paths["data"].relative_to(PROJECT_ROOT))
         if paths["data"].is_relative_to(PROJECT_ROOT)
         else str(paths["data"]),
@@ -374,14 +373,6 @@ def build_performance_figure(
             else str(paths[key])
             for key in ("light", "dark", "mobile_light", "mobile_dark")
         ],
-        "observation": (
-            "The optimizer finishes above volatility scaling. Adding trading "
-            "controls finishes highest and has the smallest major drawdown."
-        ),
-        "supported_conclusion": (
-            "Joint sizing improves development-period performance, while the "
-            "trading controls preserve that allocation with fewer trades."
-        ),
         "limitation": (
             "The path averages three separately compounded schedule wealth levels; "
             "the headline table averages metrics calculated within each schedule."

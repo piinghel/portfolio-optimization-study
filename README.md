@@ -1,7 +1,7 @@
 # Portfolio optimization
 
 Code and portfolio-level evidence for
-[Joint Sizing with Fewer Trades](https://piinghel.github.io/quants/2026/08/29/portfolio-optimization.html).
+[From Volatility Scaling to Joint Sizing](https://piinghel.github.io/quants/2026/08/29/portfolio-optimization.html).
 
 ## Start with the decision
 
@@ -41,7 +41,7 @@ The outputs are ignored by Git.
 | Question | Source |
 | --- | --- |
 | How do eligibility and trading reluctance interact? | [trading_controls.py](portfolio_optimization/trading_controls.py) |
-| How do the development-period portfolio paths differ? | [performance_figure.py](portfolio_optimization/performance_figure.py) |
+| How do volatility scaling and the optimizer with trading controls compound? | [performance_figure.py](portfolio_optimization/performance_figure.py) |
 | How sensitive are Sharpe and turnover to the controls? | [parameter_sensitivity_figure.py](portfolio_optimization/parameter_sensitivity_figure.py) |
 | What do covariance and realized-risk diagnostics show? | [rho_ladder_figure.py](portfolio_optimization/rho_ladder_figure.py), [risk_calibration_figure.py](portfolio_optimization/risk_calibration_figure.py) |
 

@@ -20,31 +20,33 @@ WIDTH = 1200
 HEIGHT = 780
 
 
+ALLOCATOR = "optimizer_with_trading_controls"
+RHO_GRID = (0.0, 0.25, 0.5, 0.75, 1.0)
+SELECTED_RHO = 0.5
+
+
 @dataclass(frozen=True)
 class Palette:
     text: str
     muted: str
     grid: str
-    stable: str
-    b2: str
-    b3: str
+    line: str
+    selected: str
 
 
 LIGHT = Palette(
     text="#172033",
     muted="#667085",
     grid="#D9DEE8",
-    stable="#EDF1F3",
-    b2="#345B7E",
-    b3="#378579",
+    line="#378579",
+    selected="#B98556",
 )
 DARK = Palette(
     text="#F3F4F6",
     muted="#AAB2C0",
     grid="#3B4250",
-    stable="#202A32",
-    b2="#78A0C4",
-    b3="#6EB5A5",
+    line="#6EB5A5",
+    selected="#C79261",
 )
 
 
@@ -63,35 +65,35 @@ PANELS = (
     Panel(
         "Risk calibration",
         "realised_to_predicted_volatility",
-        1.0,
-        1.8,
-        (1.0, 1.2, 1.4, 1.6, 1.8),
-        ".2f",
+        0.9,
+        1.6,
+        (1.0, 1.2, 1.4, 1.6),
+        ".1f",
         "Root-mean realized / forecast volatility",
     ),
     Panel(
-        "Beta error",
-        "beta_mae",
-        0.17,
-        0.26,
-        (0.18, 0.20, 0.22, 0.24),
+        "Beta bias",
+        "beta_mean_error",
+        0.0,
+        0.08,
+        (0.0, 0.02, 0.04, 0.06, 0.08),
         ".2f",
-        "Next-holding-period mean absolute error",
+        "Realized minus forecast beta, next holding period",
     ),
     Panel(
         "Annual turnover",
         "executed_turnover_l1_annualized",
-        25.0,
-        47.0,
-        (30.0, 35.0, 40.0, 45.0),
+        20.0,
+        28.0,
+        (20.0, 22.0, 24.0, 26.0, 28.0),
         ".0f",
         "Two-way turnover (× capital)",
     ),
     Panel(
         "Net Sharpe",
         "net_sharpe",
-        0.95,
-        1.46,
+        1.0,
+        1.4,
         (1.0, 1.1, 1.2, 1.3, 1.4),
         ".1f",
         "Mean across three schedules",
@@ -100,15 +102,13 @@ PANELS = (
 
 
 def _validate(frame: pl.DataFrame) -> None:
-    expected_grid = {
-        (allocator, rho / 10) for allocator in ("b2", "b3") for rho in range(11)
-    }
+    expected_grid = {(ALLOCATOR, rho) for rho in RHO_GRID}
     observed_grid = {
         (str(allocator), round(float(rho), 10))
         for allocator, rho in frame.select("allocator", "rho").iter_rows()
     }
     if frame.height != len(expected_grid) or observed_grid != expected_grid:
-        raise ValueError("rho figure requires the complete B2/B3 0.0-1.0 grid")
+        raise ValueError(f"rho figure requires {ALLOCATOR} at {RHO_GRID}")
     for panel in PANELS:
         if frame.filter(
             pl.col(panel.metric).is_null()
@@ -156,11 +156,6 @@ def _panel_svg(
         _text(
             x0 + 8, y0 + 47, panel.note, fill=palette.muted, size=18 if mobile else 20
         ),
-        (
-            f'<rect x="{x_position(0.3):.1f}" y="{top:.1f}" '
-            f'width="{x_position(0.6) - x_position(0.3):.1f}" '
-            f'height="{bottom - top:.1f}" fill="{palette.stable}"/>'
-        ),
     ]
     for tick in panel.ticks:
         y = y_position(tick)
@@ -175,7 +170,7 @@ def _panel_svg(
                 anchor="end",
             )
         )
-    for rho in (0.0, 0.2, 0.4, 0.6, 0.8, 1.0):
+    for rho in RHO_GRID:
         x = x_position(rho)
         elements.append(
             _line(x, bottom, x, bottom + 5, stroke=palette.grid, stroke_width="1")
@@ -184,33 +179,30 @@ def _panel_svg(
             _text(
                 x,
                 bottom + 23,
-                format(rho, ".1f"),
+                format(rho, "g"),
                 fill=palette.muted,
                 size=label_size,
                 anchor="middle",
             )
         )
-    for allocator, color in (
-        ("b2", palette.b2),
-        ("b3", palette.b3),
-    ):
-        rows = frame.filter(pl.col("allocator") == allocator).sort("rho")
-        points = [
-            (x_position(float(rho)), y_position(float(value)))
-            for rho, value in rows.select("rho", panel.metric).iter_rows()
-        ]
-        path = " ".join(
-            f"{'M' if point_index == 0 else 'L'}{x:.1f},{y:.1f}"
-            for point_index, (x, y) in enumerate(points)
-        )
-        elements.append(
-            f'<path d="{path}" fill="none" stroke="{color}" stroke-width="3" '
-            'stroke-linecap="round" stroke-linejoin="round"/>'
-        )
-        elements.extend(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{color}"/>'
-            for x, y in points
-        )
+    rows = frame.sort("rho")
+    points = [
+        (float(rho), x_position(float(rho)), y_position(float(value)))
+        for rho, value in rows.select("rho", panel.metric).iter_rows()
+    ]
+    path = " ".join(
+        f"{'M' if index == 0 else 'L'}{x:.1f},{y:.1f}"
+        for index, (_, x, y) in enumerate(points)
+    )
+    elements.append(
+        f'<path d="{path}" fill="none" stroke="{palette.line}" stroke-width="3" '
+        'stroke-linecap="round" stroke-linejoin="round"/>'
+    )
+    elements.extend(
+        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{6 if rho == SELECTED_RHO else 4}" '
+        f'fill="{palette.selected if rho == SELECTED_RHO else palette.line}"/>'
+        for rho, x, y in points
+    )
     elements.append(
         _text(
             (left + right) / 2,
@@ -226,9 +218,7 @@ def _panel_svg(
 
 def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> str:
     _validate(frame)
-    width, height = (480, 1435) if mobile else (WIDTH, HEIGHT)
-    label_size = 18 if mobile else 21
-    legend_left = 24 if mobile else 90
+    width, height = (480, 1365) if mobile else (WIDTH, HEIGHT - 40)
     elements = [
         (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
@@ -237,35 +227,17 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
         ),
         '<title id="title">How much correlation shrinkage matters</title>',
         (
-            '<desc id="desc">Four panels compare risk calibration, beta error, '
-            "turnover, and net Sharpe for the optimizer with and without trading "
-            "controls as correlation shrinkage moves from zero to one.</desc>"
+            '<desc id="desc">Four panels show risk calibration, beta bias, '
+            "turnover, and net Sharpe for the optimizer with trading controls as "
+            "correlation shrinkage moves from zero to one; the chosen 0.5 is "
+            "highlighted.</desc>"
         ),
         '<g font-family="DejaVu Sans, sans-serif">',
-        _line(
-            legend_left, 20, legend_left + 30, 20, stroke=palette.b2, stroke_width="3"
-        ),
-        _text(legend_left + 40, 25, "Optimizer", fill=palette.text, size=label_size),
-        _line(
-            legend_left if mobile else 310,
-            50 if mobile else 20,
-            legend_left + 30 if mobile else 340,
-            50 if mobile else 20,
-            stroke=palette.b3,
-            stroke_width="3",
-        ),
-        _text(
-            legend_left + 40 if mobile else 350,
-            55 if mobile else 25,
-            "Optimizer + trading controls",
-            fill=palette.text,
-            size=label_size,
-        ),
     ]
     positions = (
-        ((8, 90), (8, 425), (8, 760), (8, 1095))
+        ((8, 20), (8, 355), (8, 690), (8, 1025))
         if mobile
-        else ((45, 60), (630, 60), (45, 420), (630, 420))
+        else ((45, 20), (630, 20), (45, 380), (630, 380))
     )
     for panel, (x0, y0) in zip(PANELS, positions, strict=True):
         elements.extend(
@@ -308,21 +280,16 @@ def build_rho_ladder_figure(
             build_svg(frame, palette=palette, mobile=True), encoding="utf-8"
         )
     paths["caption"].write_text(
-        "**Figure 3. Correlation shrinkage.** The optimizer "
-        "and the optimizer with trading controls are rebuilt at every shrinkage "
-        "value from "
-        "0 to 1 using development data. The horizontal axis in every panel is "
-        "correlation shrinkage. The four panels show forecast calibration, "
-        "beta error over the next holding period, "
-        "turnover, and net Sharpe. The curves are stable from 0.3 to "
-        "0.6; moving from 0.4 to the implemented 0.5 barely changes the result.\n",
+        "The optimizer with trading controls rebuilt at correlation shrinkage "
+        "0, 0.25, 0.5, 0.75 and 1 on development data: risk calibration, beta "
+        "bias over the next holding period, annual turnover and net Sharpe. The "
+        "chosen 0.5 is highlighted.\n",
         encoding="utf-8",
     )
     paths["manifest"].write_text(
         json.dumps(
             {
-                "display": "Figure 3",
-                "question": "Is the correlation-shrinkage choice stable?",
+                "question": "How do risk, beta, turnover and Sharpe respond to shrinkage?",
                 "data": os.path.relpath(summary_path, PROJECT_ROOT),
                 "files": [
                     os.path.relpath(paths["light"], PROJECT_ROOT),
@@ -330,25 +297,10 @@ def build_rho_ladder_figure(
                     os.path.relpath(paths["mobile_light"], PROJECT_ROOT),
                     os.path.relpath(paths["mobile_dark"], PROJECT_ROOT),
                 ],
-                "observation": (
-                    "Risk calibration and beta error are lowest around 0.4. "
-                    "Turnover and net Sharpe move little from 0.3 through 0.6, "
-                    "while both endpoints are weaker."
-                ),
-                "supported_conclusion": (
-                    "The implemented 0.5 setting lies inside a stable local "
-                    "region rather than at an isolated optimum."
-                ),
                 "limitation": (
                     "The ladder supports a stable local region. A separate "
                     "sample would be needed to estimate an optimal value."
                 ),
-                "article_worthy": True,
-                "supporting_only": [
-                    "mean_qlike",
-                    "overshoot counts",
-                    "executed_weight_l1_vs_rho50",
-                ],
                 "mobile_specific_asset": True,
             },
             indent=2,

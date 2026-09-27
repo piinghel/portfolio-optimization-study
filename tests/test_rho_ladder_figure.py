@@ -1,44 +1,37 @@
 import polars as pl
 import pytest
 
-from portfolio_optimization.rho_ladder_figure import LIGHT, build_svg
+from portfolio_optimization.rho_ladder_figure import (
+    ALLOCATOR,
+    LIGHT,
+    RHO_GRID,
+    build_svg,
+)
 
 
-def test_rho_svg_labels_allocators_and_metric_units() -> None:
-    rows = [
+def _rows() -> list[dict[str, object]]:
+    return [
         {
-            "allocator": allocator,
-            "rho": rho / 10,
-            "realised_to_predicted_volatility": 1.2 + rho / 100,
-            "beta_mae": 0.18 + rho / 1000,
-            "executed_turnover_l1_annualized": 40 - rho,
-            "net_sharpe": 1.4 - rho / 100,
+            "allocator": ALLOCATOR,
+            "rho": rho,
+            "realised_to_predicted_volatility": 1.0 + rho / 2,
+            "beta_mean_error": 0.06 - rho / 50,
+            "executed_turnover_l1_annualized": 26 - 4 * rho,
+            "net_sharpe": 1.3 - rho / 5,
         }
-        for allocator in ("b2", "b3")
-        for rho in range(11)
+        for rho in RHO_GRID
     ]
 
-    svg = build_svg(pl.DataFrame(rows), palette=LIGHT)
 
-    assert "Optimizer" in svg
-    assert "Optimizer + trading controls" in svg
+def test_rho_svg_labels_metrics_and_highlights_the_chosen_value() -> None:
+    svg = build_svg(pl.DataFrame(_rows()), palette=LIGHT)
+
+    assert "Beta bias" in svg
     assert "Mean across three schedules" in svg
     assert "Two-way turnover (× capital)" in svg
+    assert svg.count(f'fill="{LIGHT.selected}"') == 4
 
 
-def test_rho_svg_rejects_an_incomplete_allocator_grid() -> None:
-    rows = [
-        {
-            "allocator": allocator,
-            "rho": rho / 10,
-            "realised_to_predicted_volatility": 1.2 + rho / 100,
-            "beta_mae": 0.18 + rho / 1000,
-            "executed_turnover_l1_annualized": 40 - rho,
-            "net_sharpe": 1.3 - rho / 100,
-        }
-        for allocator in ("b2", "b3")
-        for rho in range(11)
-    ]
-
-    with pytest.raises(ValueError, match="complete B2/B3"):
-        build_svg(pl.DataFrame(rows[:-1]), palette=LIGHT)
+def test_rho_svg_rejects_an_incomplete_grid() -> None:
+    with pytest.raises(ValueError, match="rho figure requires"):
+        build_svg(pl.DataFrame(_rows()[:-1]), palette=LIGHT)

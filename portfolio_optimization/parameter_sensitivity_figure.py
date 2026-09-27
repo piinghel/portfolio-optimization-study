@@ -56,14 +56,14 @@ class Column:
 COLUMNS = (
     Column(
         "trade_coefficient",
-        "Trade coefficient",
-        "Coefficient c (×10⁻⁴)",
+        "Trade penalty",
+        "Coefficient c (×10⁻⁴; 0 = no penalty)",
         2.5,
     ),
     Column(
         "holding_cutoff",
-        "Holding cutoff",
-        "Rank cutoff",
+        "Rank buffer",
+        "Holding cutoff (75 = no buffer)",
         175.0,
     ),
 )
@@ -80,13 +80,13 @@ class Row:
 
 
 ROWS = (
-    Row("Net Sharpe", "net_sharpe", 1.32, 1.47, (1.35, 1.40, 1.45), ".2f"),
+    Row("Net Sharpe", "net_sharpe", 1.20, 1.45, (1.25, 1.30, 1.35, 1.40), ".2f"),
     Row(
         "Annual turnover (× capital)",
         "executed_turnover_l1_annualized",
-        20.0,
-        45.0,
-        (20.0, 30.0, 40.0),
+        15.0,
+        35.0,
+        (20.0, 25.0, 30.0),
         ".0f",
     ),
 )
@@ -96,15 +96,12 @@ def _validate(frame: pl.DataFrame) -> None:
     expected = {
         ("trade_coefficient", 0.0),
         ("trade_coefficient", 1.0),
-        ("trade_coefficient", 2.0),
         ("trade_coefficient", 2.5),
-        ("trade_coefficient", 3.0),
         ("trade_coefficient", 5.0),
         ("holding_cutoff", 75.0),
-        ("holding_cutoff", 150.0),
+        ("holding_cutoff", 125.0),
         ("holding_cutoff", 175.0),
-        ("holding_cutoff", 200.0),
-        ("holding_cutoff", 275.0),
+        ("holding_cutoff", 225.0),
     }
     observed = {
         (str(family), float(value))
@@ -281,26 +278,11 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
         ),
         '<title id="title">Sensitivity of the optimizer trading controls</title>',
         (
-            '<desc id="desc">Net Sharpe and annual turnover across six trade '
-            "coefficients and five holding-rank cutoffs during development. "
+            '<desc id="desc">Net Sharpe and annual turnover across four trade '
+            "penalties and four rank-buffer cutoffs during development. "
             "Sharpe whiskers show the range across three rebalance schedules.</desc>"
         ),
         '<g font-family="DejaVu Sans, sans-serif">',
-        _text(
-            24 if mobile else 53,
-            24,
-            "Means · Sharpe whiskers: schedule range",
-            fill=palette.muted,
-            size=label_size,
-        ),
-        f'<circle cx="{32 if mobile else 650}" cy="{48 if mobile else 19}" r="6" fill="{palette.selected}"/>',
-        _text(
-            48 if mobile else 665,
-            53 if mobile else 24,
-            "Chosen setting",
-            fill=palette.muted,
-            size=label_size,
-        ),
     ]
     positions = (
         ((8, 72), (8, 650), (8, 357), (8, 935))
@@ -357,36 +339,24 @@ def build_parameter_sensitivity_figure(
             build_svg(frame, palette=palette, mobile=True), encoding="utf-8"
         )
     paths["caption"].write_text(
-        "**Figure 2. Trading-control sensitivity.** Net "
-        "Sharpe and annualized two-way turnover through 2021. The trade-coefficient "
-        "group holds the rank cutoff at 175; the rank-cutoff group holds the "
-        "coefficient at 0.00025. Points are schedule means; Sharpe whiskers span the "
-        "three rebalance schedules, not confidence intervals.\n",
+        "Net Sharpe and annualized two-way turnover through 2021. The trade-penalty "
+        "group holds the rank cutoff at 175; the rank-buffer group holds the "
+        "coefficient at 2.5 x 10^-4. Points are schedule means; Sharpe whiskers span "
+        "the three rebalance schedules; chosen settings are highlighted.\n",
         encoding="utf-8",
     )
     paths["manifest"].write_text(
         json.dumps(
             {
-                "display": "Figure 2",
                 "question": (
-                    "Are the trade coefficient and holding cutoff supported by "
-                    "a stable development-period compromise?"
+                    "How do Sharpe and turnover respond to the trade penalty "
+                    "and the rank buffer around the chosen settings?"
                 ),
                 "data": os.path.relpath(summary_path, PROJECT_ROOT),
                 "files": [
                     os.path.relpath(paths[key], PROJECT_ROOT)
                     for key in ("light", "dark", "mobile_light", "mobile_dark")
                 ],
-                "observation": (
-                    "Trade coefficients from 1 through 3 have similar net Sharpe "
-                    "while turnover declines. Holding cutoffs from 150 through "
-                    "200 are also close, with only a modest turnover change."
-                ),
-                "supported_conclusion": (
-                    "The selected coefficient of 0.00025 and rank cutoff of 175 "
-                    "sit inside broad local plateaus rather than at isolated "
-                    "optima."
-                ),
                 "limitation": ("Each axis varies one choice at a time."),
                 "mobile_specific_asset": True,
             },

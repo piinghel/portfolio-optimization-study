@@ -27,33 +27,39 @@ class Palette:
     text: str
     muted: str
     grid: str
-    b1: str
-    b2: str
-    b3: str
+    band: str
+    baseline: str
+    selected: str
 
 
 LIGHT = Palette(
     text="#172033",
     muted="#667085",
     grid="#D9DEE8",
-    b1="#9AA6AF",
-    b2="#345B7E",
-    b3="#378579",
+    band="#EDF1F3",
+    baseline="#9AA6AF",
+    selected="#378579",
 )
 DARK = Palette(
     text="#F3F4F6",
     muted="#AAB2C0",
     grid="#3B4250",
-    b1="#8B949E",
-    b2="#78A0C4",
-    b3="#6EB5A5",
+    band="#202A32",
+    baseline="#8B949E",
+    selected="#6EB5A5",
 )
 
 ALLOCATORS = (
-    ("b1_ranked_volscale", "Volatility-scaled", "b1", None),
-    ("b2_memoryless_mvo", "Optimizer", "b2", None),
-    ("b3_state_aware_mvo", "Optimizer + trading controls", "b3", None),
+    ("volatility_scaled", "Volatility-scaled", "baseline", None),
+    (
+        "optimizer_with_trading_controls",
+        "Optimizer + trading controls",
+        "selected",
+        None,
+    ),
 )
+# The optimizer's limit on its rebalance-time beta estimate.
+BETA_LIMIT = 0.05
 EXPECTED_ALLOCATORS = {row[0] for row in ALLOCATORS}
 
 
@@ -78,7 +84,7 @@ def monthly_mean_beta(beta: pl.LazyFrame) -> pl.DataFrame:
 
 def _validate(beta: pl.DataFrame) -> None:
     if set(beta.get_column("allocator")) != EXPECTED_ALLOCATORS:
-        raise ValueError("beta display requires the declared B1, B2, and B3 histories")
+        raise ValueError(f"beta display requires the histories {EXPECTED_ALLOCATORS}")
     if (
         beta.select("allocator", "date").n_unique() != beta.height
         or beta.group_by("date")
@@ -106,7 +112,7 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> 
     width, height = (480, 560) if mobile else (WIDTH, HEIGHT)
     label_size = 18 if mobile else 21
     left, right, top, bottom = (
-        (55.0, 455.0, 150.0, 520.0) if mobile else (95.0, 1115.0, 110.0, 465.0)
+        (55.0, 455.0, 120.0, 520.0) if mobile else (95.0, 905.0, 80.0, 465.0)
     )
     start = beta.get_column("date").min()
     end = beta.get_column("date").max()
@@ -133,10 +139,17 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> 
         '<title id="title">Trailing realized market beta</title>',
         (
             '<desc id="desc">Monthly trailing 252-day realized beta for the '
-            "volatility-scaled rule and both optimizers, shown against a zero "
-            "reference line.</desc>"
+            "volatility-scaled rule and the optimizer with trading controls, with "
+            "a pale band at the optimizer's plus or minus 0.05 limit on its "
+            "rebalance-time beta estimate.</desc>"
         ),
         ('<g font-family="DejaVu Sans, sans-serif">'),
+        (
+            f'<rect x="{left:.1f}" y="{y_position(BETA_LIMIT):.1f}" '
+            f'width="{right - left:.1f}" '
+            f'height="{y_position(-BETA_LIMIT) - y_position(BETA_LIMIT):.1f}" '
+            f'fill="{palette.band}"/>'
+        ),
     ]
 
     for tick in (-0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4):
@@ -187,42 +200,22 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> 
         )
     )
 
-    legend_positions = (
-        ((55.0, 65.0), (55.0, 93.0), (55.0, 121.0))
-        if mobile
-        else ((95.0, 70.0), (365.0, 70.0), (565.0, 70.0))
-    )
+    endpoints: list[tuple[float, str, str]] = []
     for index, (allocator, label, color_name, dash) in enumerate(ALLOCATORS):
         color = getattr(palette, color_name)
-        x0, y0 = legend_positions[index]
         dash_attribute = "" if dash is None else f' stroke-dasharray="{dash}"'
-        elements.extend(
-            [
-                _line(
-                    x0,
-                    y0,
-                    x0 + 32,
-                    y0,
-                    **(
-                        {
-                            "stroke": color,
-                            "stroke_width": "3",
-                            "stroke_dasharray": dash,
-                        }
-                        if dash is not None
-                        else {"stroke": color, "stroke_width": "3"}
-                    ),
-                ),
-                _text(
-                    x0 + 42,
-                    y0 + 5,
-                    label,
-                    fill=palette.text,
-                    size=label_size,
-                ),
-            ]
-        )
+        if mobile:
+            # Phones lack room beside the lines, so they keep a compact legend.
+            x0, y0 = 55.0, 65.0 + 28.0 * index
+            elements.extend(
+                [
+                    _line(x0, y0, x0 + 32, y0, stroke=color, stroke_width="3"),
+                    _text(x0 + 42, y0 + 5, label, fill=palette.text, size=label_size),
+                ]
+            )
         rows = beta.filter(pl.col("allocator") == allocator).sort("date")
+        last_value = float(rows.get_column("realised_beta_252d")[-1])
+        endpoints.append((y_position(last_value), label, color))
         commands = " ".join(
             f"{'M' if point_index == 0 else 'L'}{x_position(row_date):.1f},{y_position(float(value)):.1f}"
             for point_index, (row_date, value) in enumerate(
@@ -234,12 +227,25 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> 
             f'stroke-width="2.2" stroke-linejoin="round"{dash_attribute}/>'
         )
 
-    elements.extend(
-        [
-            "</g>",
-            "</svg>",
-        ]
-    )
+    if not mobile:
+        next_top = top
+        for end_y, label, color in sorted(endpoints):
+            label_y = max(end_y, next_top)
+            next_top = label_y + label_size * 2.6
+            words = label.split(" + ")
+            lines = [f"{words[0]} +", words[1]] if len(words) == 2 else [label]
+            for line_index, line in enumerate(lines):
+                elements.append(
+                    _text(
+                        right + 15,
+                        label_y + 6 + line_index * label_size * 1.15,
+                        line,
+                        fill=color,
+                        size=label_size,
+                        weight=600,
+                    )
+                )
+    elements.extend(["</g>", "</svg>"])
     return "\n".join(elements) + "\n"
 
 
@@ -269,19 +275,16 @@ def build_risk_calibration_figure(
             build_svg(beta, palette=palette, mobile=True), encoding="utf-8"
         )
     paths["caption"].write_text(
-        "**Figure 4. Realized market beta through time.** Trailing 252-day "
-        "portfolio beta for the volatility-scaled rule and both optimizers, "
-        "sampled monthly through 2021 and averaged across the three "
-        "rebalance schedules. "
-        "The point-in-time optimizer constraint uses a different beta estimate "
-        "and clock, so its target band is not overlaid on this slow outcome "
-        "measure.\n",
+        "Trailing 252-day portfolio beta for volatility scaling and the "
+        "optimizer with trading controls, sampled monthly through 2021 and "
+        "averaged across the three rebalance schedules. The pale band marks the "
+        "optimizer's +/-0.05 limit, which applies to its rebalance-time estimate "
+        "rather than to this trailing outcome.\n",
         encoding="utf-8",
     )
     paths["manifest"].write_text(
         json.dumps(
             {
-                "display": "Figure 4",
                 "question": (
                     "How large and persistent is realised market beta after "
                     "portfolio formation?"
@@ -293,16 +296,6 @@ def build_risk_calibration_figure(
                     os.path.relpath(paths["mobile_light"], PROJECT_ROOT),
                     os.path.relpath(paths["mobile_dark"], PROJECT_ROOT),
                 ],
-                "observation": (
-                    "Through 2021, all three rules carry persistent realised "
-                    "beta at times; "
-                    "the optimizers reduce, but do not remove, that exposure."
-                ),
-                "supported_conclusion": (
-                    "Joint optimization improves persistent beta relative to "
-                    "volatility scaling, but the point-in-time constraint does "
-                    "not keep trailing realised beta close to zero."
-                ),
                 "limitation": (
                     "The 252-day outcome measure has long memory and is not the "
                     "point-in-time beta estimate constrained at a rebalance."

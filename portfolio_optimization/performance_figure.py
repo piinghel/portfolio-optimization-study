@@ -43,7 +43,7 @@ class Palette:
 
 LIGHT = Palette(
     text="#172033",
-    title="#000000",
+    title="#172033",
     muted="#667085",
     grid="#D9DEE8",
     baseline="#9AA6AF",
@@ -226,7 +226,7 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) ->
                 _text(
                     left - 12,
                     y + 5,
-                    f"{tick:.0f}",
+                    f"{tick:.0f}".replace("-", "\u2212"),
                     fill=palette.muted,
                     size=label_size,
                     anchor="end",

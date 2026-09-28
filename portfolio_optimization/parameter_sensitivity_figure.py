@@ -82,7 +82,7 @@ class Row:
 ROWS = (
     Row("Net Sharpe", "net_sharpe", 1.20, 1.45, (1.25, 1.30, 1.35, 1.40), ".2f"),
     Row(
-        "Annual turnover (× capital)",
+        "Annual two-way turnover (× capital)",
         "executed_turnover_l1_annualized",
         15.0,
         35.0,

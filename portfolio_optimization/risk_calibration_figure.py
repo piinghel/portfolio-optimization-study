@@ -138,7 +138,7 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> 
         ),
         '<title id="title">Trailing realized market beta</title>',
         (
-            '<desc id="desc">Monthly trailing 252-day realized beta for the '
+            '<desc id="desc">Monthly trailing 252-session realized beta for the '
             "volatility-scaled rule and the optimizer with trading controls, with "
             "a pale band at the optimizer's plus or minus 0.05 limit on its "
             "rebalance-time beta estimate.</desc>"
@@ -167,7 +167,7 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> 
                 _text(
                     left - 12,
                     y + 5,
-                    f"{tick:.1f}",
+                    f"{tick:.1f}".replace("-", "\u2212"),
                     fill=palette.muted,
                     size=label_size,
                     anchor="end",
@@ -193,7 +193,7 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> 
         _text(
             left,
             34,
-            "Trailing 252-day realized beta",
+            "Trailing 252-session realized beta",
             fill=palette.text,
             size=20 if mobile else 24,
             weight=600,
@@ -275,7 +275,7 @@ def build_risk_calibration_figure(
             build_svg(beta, palette=palette, mobile=True), encoding="utf-8"
         )
     paths["caption"].write_text(
-        "Trailing 252-day portfolio beta for volatility scaling and the "
+        "Trailing 252-session portfolio beta for volatility scaling and the "
         "optimizer with trading controls, sampled monthly through 2021 and "
         "averaged across the three rebalance schedules. The pale band marks the "
         "optimizer's +/-0.05 limit, which applies to its rebalance-time estimate "
@@ -297,7 +297,7 @@ def build_risk_calibration_figure(
                     os.path.relpath(paths["mobile_dark"], PROJECT_ROOT),
                 ],
                 "limitation": (
-                    "The 252-day outcome measure has long memory and is not the "
+                    "The 252-session outcome measure has long memory and is not the "
                     "point-in-time beta estimate constrained at a rebalance."
                 ),
                 "excluded_supporting_evidence": [

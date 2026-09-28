@@ -43,7 +43,7 @@ def test_parameter_figure_uses_the_article_terms_for_both_controls() -> None:
     assert "Rank buffer" in svg
     assert "0 = no penalty" in svg
     assert "Rank-buffer cutoff (75 = no buffer)" in svg
-    assert "Annual turnover (× capital)" in svg
+    assert "Annual two-way turnover (× capital)" in svg
 
 
 def test_parameter_figure_highlights_the_chosen_settings_in_dark_mode() -> None:

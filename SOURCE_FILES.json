@@ -2,10 +2,10 @@
   "source": "Ridge ranking fitted on 80 predictors, volatility multiplier 1.55, replayed on 2026-09-27",
   "scope": "Unchanged portfolio-level input files; code ownership is in this study.",
   "sha256": {
-    "outputs/review/article_parameter_sensitivity.csv": "4031fc7b22e4122f011b5575d55aadfd723406c35a306ded382eca716b760836",
-    "outputs/review/article_period_comparison.csv": "d10e430cb3da227fbd65bb0a29920acc3d81b0484b4ec23ab165e5a8b5d715a9",
+    "outputs/review/article_parameter_sensitivity.csv": "f65d748ee005f10eeb392713c23cae3d8bbdf760b46bf154417067b08d24d068",
+    "outputs/review/article_period_comparison.csv": "152d01827608fb9393c4b2a75489ccb6a7c76b2077dcdbaf6fcd82a9fa2d9e49",
     "outputs/review/performance_path_daily.parquet": "6ffef10b42998e1f8c8fc5900d41a5353cb5998d1f9425767d01496eaf71a70f",
-    "outputs/review/rho_ladder_summary.csv": "a916486a695bab2e3e31dc8aa8f4755ec7ce1865f0655bf3125ab84b059302b5",
+    "outputs/review/rho_ladder_summary.csv": "90e0879d083a0b87634d92f4857d9f4c25968bbd3e35e1e2b3fddde8e73657c0",
     "outputs/review/rolling_realised_beta_252d.csv": "4dd638292537ec212af337923d7db366445a0c8d73e7a605851a99696aef2dfb"
   }
 }

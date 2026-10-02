@@ -1,7 +1,7 @@
 # Portfolio optimization
 
 Code and portfolio-level evidence for
-[From Volatility Scaling to Joint Sizing](https://piinghel.github.io/quants/2026/08/29/portfolio-optimization.html).
+[From Volatility Scaling to Joint Sizing](https://piinghel.github.io/quants/joint-sizing.html).
 
 ## Start with the decision
 
